@@ -1,8 +1,244 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
-  "parameters": {},
-  "variables": {},
-  "resources": [],
-  "outputs": {}
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "metadata": {
+        "description": "Location for all resources."
+      },
+      "allowedValues": [
+        "westeurope",
+        "eastus2",
+        "southeastasia",
+        "centralus",
+        "westus"
+      ]
+    },
+    "rgPrefix": {
+      "defaultValue": "svdemo2019",
+      "metadata": {
+        "description": "Prefix to disambiguate services"
+      },
+      "type": "string"
+    },
+    "CV-SKU": {
+      "type": "string",
+      "metadata": {
+        "description": "SKU for Computer Vision API"
+      },
+      "defaultValue": "F0",
+      "allowedValues": [
+        "F0",
+        "S1"
+      ]
+    }
+  },
+  "variables": {
+    "cognitive": {
+      "accountName": "[concat(parameters('rgPrefix'), '-cv')]",
+      "id": "[concat(resourceGroup().id,'/providers/','Microsoft.CognitiveServices/accounts/', parameters('rgPrefix'), '-cv')]",
+      "SKU": "[parameters('CV-SKU')]",
+      "location": "[parameters('location')]"
+    },
+    "serviceBus": {
+      "namespace": "[concat(parameters('rgPrefix'), 'sb')]",
+      "location": "[parameters('location')]",
+      "queueName": "images-to-classify",
+      "authRuleResourceId": "[resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', concat(parameters('rgPrefix'), 'sb'), 'RootManageSharedAccessKey')]"
+    },
+    "functionsApp": {
+      "name": "[concat(parameters('rgPrefix'), '-functionshost')]",
+      "location": "[parameters('location')]",
+      "storage": "[concat(parameters('rgPrefix'), 'store')]",
+      "storageId": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('rgPrefix'), 'store')]",
+      "storageSKU": "Standard_LRS",
+      "processFunction": "[concat(parameters('rgPrefix'), '-image-classifier')]",
+      "startFunction": "[concat(parameters('rgPrefix'), '-find-image')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.CognitiveServices/accounts",
+      "sku": {
+        "name": "[variables('cognitive').SKU]"
+      },
+      "kind": "ComputerVision",
+      "name": "[variables('cognitive').accountName]",
+      "apiVersion": "2016-02-01-preview",
+      "location": "[variables('cognitive').location]",
+      "properties": {},
+      "dependsOn": []
+    },
+    {
+      "apiVersion": "2017-04-01",
+      "name": "[variables('serviceBus').namespace]",
+      "type": "Microsoft.ServiceBus/namespaces",
+      "location": "[variables('serviceBus').location]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {},
+      "resources": [
+        {
+          "apiVersion": "2017-04-01",
+          "name": "[variables('serviceBus').queueName]",
+          "type": "Queues",
+          "dependsOn": [
+            "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]"
+          ],
+          "properties": {
+            "lockDuration": "PT5M",
+            "maxSizeInMegabytes": "1024",
+            "requiresDuplicateDetection": "false",
+            "requiresSession": "false",
+            "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+            "deadLetteringOnMessageExpiration": "false",
+            "duplicateDetectionHistoryTimeWindow": "PT10M",
+            "maxDeliveryCount": "10",
+            "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+            "enablePartitioning": "false",
+            "enableExpress": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "[variables('functionsApp').storage]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[variables('cognitive').location]",
+      "apiVersion": "2016-01-01",
+      "sku": {
+        "name": "[variables('functionsApp').storageSKU]"
+      },
+      "dependsOn": [],
+      "kind": "Storage"
+    },
+
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2015-04-01",
+      "name": "[variables('functionsApp').name]",
+      "location": "[variables('functionsApp').location]",
+      "properties": {
+        "name": "[variables('functionsApp').name]",
+        "computeMode": "Dynamic",
+        "sku": "Dynamic"
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('functionsApp').processFunction]",
+      "location": "[variables('functionsApp').location]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('functionsApp').storage)]",
+        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "AzureWebJobsDashboard",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(variables('functionsApp').processFunction)]"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~2"
+            },
+            {
+              "name": "ProcessQueue",
+              "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryConnectionString]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('functionsApp').startFunction]",
+      "location": "[variables('functionsApp').location]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('functionsApp').storage)]",
+        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "AzureWebJobsDashboard",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(variables('functionsApp').startFunction)]"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~2"
+            },
+            {
+              "name": "ProcessQueue",
+              "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryConnectionString]"
+            }
+          ]
+        }
+      }
+    }
+
+  ],
+  "outputs": {
+    "cognitivekeys": {
+      "type": "object",
+      "value": "[listKeys(variables('cognitive').id,'2016-02-01-preview')]"
+    },
+    "cognitivekey1": {
+      "type": "string",
+      "value": "[listKeys(variables('cognitive').id,'2016-02-01-preview').key1]"
+    },
+    "cognitivekey2": {
+      "type": "string",
+      "value": "[listKeys(variables('cognitive').id,'2016-02-01-preview').key2]"
+    },
+    "endpoint": {
+      "type": "string",
+      "value": "[reference(variables('cognitive').id,'2016-02-01-preview').endpoint]"
+    },
+    "NamespaceConnectionString": {
+      "type": "string",
+      "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryConnectionString]"
+    },
+    "SharedAccessPolicyPrimaryKey": {
+      "type": "string",
+      "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryKey]"
+    }
+  }
 }

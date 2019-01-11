@@ -40,7 +40,9 @@
       "accountName": "[concat(parameters('rgPrefix'), '-cv')]",
       "id": "[concat(resourceGroup().id,'/providers/','Microsoft.CognitiveServices/accounts/', parameters('rgPrefix'), '-cv')]",
       "SKU": "[parameters('CV-SKU')]",
-      "location": "[parameters('location')]"
+      "location": "[parameters('location')]",
+      "bingName": "[concat(parameters('rgPrefix'), '-bing')]",
+      "bingId": "[concat(resourceGroup().id,'/providers/','Microsoft.CognitiveServices/accounts/', parameters('rgPrefix'), '-bing')]"
     },
     "serviceBus": {
       "namespace": "[concat(parameters('rgPrefix'), 'sb')]",
@@ -70,6 +72,21 @@
       "location": "[variables('cognitive').location]",
       "properties": {},
       "dependsOn": []
+    },
+    {
+      "apiVersion": "2016-02-01-preview",
+      "name": "[variables('cognitive').bingName]",
+      "location": "global",
+      "type": "Microsoft.CognitiveServices/accounts",
+      "kind": "Bing.Search.v7",
+      "sku": {
+        "name": "[variables('cognitive').SKU]"
+      },
+      "properties": {
+        "apiProperties": {
+          "statisticsEnabled": false
+        }
+      }
     },
     {
       "apiVersion": "2017-04-01",
@@ -165,6 +182,14 @@
             {
               "name": "ProcessQueue",
               "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryConnectionString]"
+            },
+            {
+              "name": "CVKey",
+              "value": "[listKeys(variables('cognitive').id,'2016-02-01-preview').key1]"
+            },
+            {
+              "name": "CVEndpoint",
+              "value": "[reference(variables('cognitive').id,'2016-02-01-preview').endpoint]"
             }
           ]
         }
@@ -208,6 +233,14 @@
             {
               "name": "ProcessQueue",
               "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryConnectionString]"
+            },
+            {
+              "name": "BingSearchKey",
+              "value": "[listKeys(variables('cognitive').bingId,'2016-02-01-preview').key1]"
+            },
+            {
+              "name": "BingSearchEndpoint",
+              "value": "[reference(variables('cognitive').bingId,'2016-02-01-preview').endpoint]"
             }
           ]
         }

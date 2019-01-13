@@ -28,10 +28,9 @@
       "metadata": {
         "description": "SKU for Computer Vision API"
       },
-      "defaultValue": "F0",
+      "defaultValue": "S0",
       "allowedValues": [
-        "F0",
-        "S1"
+        "S0"
       ]
     }
   },
@@ -42,7 +41,8 @@
       "SKU": "[parameters('CV-SKU')]",
       "location": "[parameters('location')]",
       "bingName": "[concat(parameters('rgPrefix'), '-bing')]",
-      "bingId": "[concat(resourceGroup().id,'/providers/','Microsoft.CognitiveServices/accounts/', parameters('rgPrefix'), '-bing')]"
+      "bingId": "[concat(resourceGroup().id,'/providers/','Microsoft.CognitiveServices/accounts/', parameters('rgPrefix'), '-bing')]",
+      "bingSKU" : "F0"
     },
     "serviceBus": {
       "namespace": "[concat(parameters('rgPrefix'), 'sb')]",
@@ -66,7 +66,7 @@
       "sku": {
         "name": "[variables('cognitive').SKU]"
       },
-      "kind": "ComputerVision",
+      "kind": "CognitiveServices",
       "name": "[variables('cognitive').accountName]",
       "apiVersion": "2016-02-01-preview",
       "location": "[variables('cognitive').location]",
@@ -80,7 +80,7 @@
       "type": "Microsoft.CognitiveServices/accounts",
       "kind": "Bing.Search.v7",
       "sku": {
-        "name": "[variables('cognitive').SKU]"
+        "name": "[variables('cognitive').bingSKU]"
       },
       "properties": {
         "apiProperties": {
@@ -153,7 +153,8 @@
       "dependsOn": [
         "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('functionsApp').storage)]",
-        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]"
+        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]",
+        "[variables('cognitive').id]"
       ],
       "properties": {
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
@@ -204,7 +205,8 @@
       "dependsOn": [
         "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('functionsApp').storage)]",
-        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]"
+        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]",
+        "[variables('cognitive').bingId]"
       ],
       "properties": {
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",

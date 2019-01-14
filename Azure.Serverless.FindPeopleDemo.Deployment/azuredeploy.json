@@ -56,8 +56,7 @@
       "storage": "[concat(parameters('rgPrefix'), 'store')]",
       "storageId": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('rgPrefix'), 'store')]",
       "storageSKU": "Standard_LRS",
-      "processFunction": "[concat(parameters('rgPrefix'), '-image-classifier')]",
-      "startFunction": "[concat(parameters('rgPrefix'), '-find-image')]"
+      "functionName": "[concat(parameters('rgPrefix'), '-image-classifier')]"
     }
   },
   "resources": [
@@ -147,7 +146,7 @@
     {
       "apiVersion": "2015-08-01",
       "type": "Microsoft.Web/sites",
-      "name": "[variables('functionsApp').processFunction]",
+      "name": "[variables('functionsApp').functionName]",
       "location": "[variables('functionsApp').location]",
       "kind": "functionapp",
       "dependsOn": [
@@ -174,7 +173,7 @@
             },
             {
               "name": "WEBSITE_CONTENTSHARE",
-              "value": "[toLower(variables('functionsApp').processFunction)]"
+              "value": "[toLower(variables('functionsApp').functionName)]"
             },
             {
               "name": "FUNCTIONS_EXTENSION_VERSION",
@@ -191,50 +190,6 @@
             {
               "name": "CVEndpoint",
               "value": "[reference(variables('cognitive').id,'2016-02-01-preview').endpoint]"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "apiVersion": "2015-08-01",
-      "type": "Microsoft.Web/sites",
-      "name": "[variables('functionsApp').startFunction]",
-      "location": "[variables('functionsApp').location]",
-      "kind": "functionapp",
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('functionsApp').storage)]",
-        "[concat('Microsoft.ServiceBus/namespaces/', variables('serviceBus').namespace)]",
-        "[variables('cognitive').bingId]"
-      ],
-      "properties": {
-        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('functionsApp').name)]",
-        "siteConfig": {
-          "appSettings": [
-            {
-              "name": "AzureWebJobsDashboard",
-              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
-            },
-            {
-              "name": "AzureWebJobsStorage",
-              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
-            },
-            {
-              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('functionsApp').storage, ';AccountKey=', listKeys(variables('functionsApp').storageId,'2015-05-01-preview').key1)]"
-            },
-            {
-              "name": "WEBSITE_CONTENTSHARE",
-              "value": "[toLower(variables('functionsApp').startFunction)]"
-            },
-            {
-              "name": "FUNCTIONS_EXTENSION_VERSION",
-              "value": "~2"
-            },
-            {
-              "name": "ProcessQueue",
-              "value": "[listkeys(variables('serviceBus').authRuleResourceId, '2017-04-01').primaryConnectionString]"
             },
             {
               "name": "BingSearchKey",
@@ -248,7 +203,6 @@
         }
       }
     }
-
   ],
   "outputs": {
     "cognitivekeys": {

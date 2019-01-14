@@ -18,22 +18,26 @@ namespace Azure.Serverless.FindPeopleDemo.Process
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-            string emotion = req.Query["emotion"].FirstOrDefault() ?? "happy";
 
+            string emotion = req.Query["emotion"].FirstOrDefault() ?? "happy";
+            string criteria = req.Query["search"].FirstOrDefault() ?? "random people with different emotions";
+
+            log.LogInformation($"Finding people with emotion: {emotion}");
+            
             // Get images from a Bing search
             var key = System.Environment.GetEnvironmentVariable("BingSearchKey");
             var search = new ImageSearchClient(new ApiKeyServiceClientCredentials(key));
-            var results = await search.Images.SearchAsync("people", safeSearch: "Strict");
+            var results = await search.Images.SearchAsync(criteria, safeSearch: "Strict", count: 100);
 
             var connection = Environment.GetEnvironmentVariable("ProcessQueue");
             var q = new QueueClient(connection, "images-to-classify");
-            foreach (var result in results.Value.Take(10))
+            foreach (var result in results.Value)
             {
-                var data = System.Text.Encoding.UTF8.GetBytes($"{{ 'emotion': '{emotion}', 'imageUrl': '{result.ContentUrl}' }}");
+                var data = System.Text.Encoding.UTF8.GetBytes(
+                    $"{{ 'emotion': '{emotion}', 'imageUrl': '{result.ContentUrl}', 'fileName': '{result.ImageId + '.' + result.EncodingFormat}' }}");
                 await q.SendAsync(new Message(data));
             }
-
+            
             return new OkResult();
         }
     }

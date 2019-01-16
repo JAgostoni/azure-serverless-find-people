@@ -1,4 +1,5 @@
 [![Deploy to Azure](https://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FJAgostoni%2Fazure-serverless-find-people%2Fmaster%2FAzure.Serverless.FindPeopleDemo.Deployment%2Fazuredeploy.json)
+[![Build Status](https://jagostoni.visualstudio.com/FindHappyPeople/_apis/build/status/FindHappyPeople-CI?branchName=master)](https://jagostoni.visualstudio.com/FindHappyPeople/_build/latest?definitionId=1?branchName=master)
 
 # Azure Serverless Find People Demo
 Complete demo of Azure Functions and Cognitive Services (Bing Search API and Faces API)
@@ -36,4 +37,17 @@ Complete demo of Azure Functions and Cognitive Services (Bing Search API and Fac
    1. Example `http://localhost:7071/api/StartSearch?search=weird%20people&emotion=surprise`
    2. Supported emotions: angry, happy, contempt, disgust, fear, sad, surprise
 3. Matching images will be saved to the Azure storage account created above (or your local storage emulator) in the images container
+
+# CI Build with Azure DevOps
+The root of this repository contains a build script, azure-pipelines.yml, which can be used by Azure DevOps to create a CI build pipeline is just a few simple steps:
+1. Open a browser to your Azure DevOps account (or create a new one for free)
+2. Either select an existing Project or Create a new project
+3. In your project, select Pipelines->Builds in the navigation menu/panel and create a NEW pipeline
+4. Select this (or your forked) GitHub repo as the source (you may need to link your GitHub account if this is the first connection)
+5. Once you have connected the repo, select YAML for build confguration as code
+6. When the pipeline editor loads, be sure to select the azure-pipelines.yml file from the root folder
+7. Select Save & Queue
+
+Now you have continuous builds setup on your selected repo and branch!
+
    

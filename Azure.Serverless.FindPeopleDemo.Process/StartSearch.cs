@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Linq;
 using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.CognitiveServices.Search.ImageSearch;
+using Microsoft.Azure.WebJobs.ServiceBus;
 
 namespace Azure.Serverless.FindPeopleDemo.Process
 {
@@ -16,7 +17,8 @@ namespace Azure.Serverless.FindPeopleDemo.Process
         [FunctionName("StartSearch")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
-            ILogger log)
+            ILogger log, 
+            [ServiceBus("images-to-classify", Connection = "ProcessQueue", EntityType = EntityType.Queue)]IAsyncCollector<string> outputMessages)
         {
 
             string emotion = req.Query["emotion"].FirstOrDefault() ?? "happy";
@@ -29,13 +31,14 @@ namespace Azure.Serverless.FindPeopleDemo.Process
             var search = new ImageSearchClient(new ApiKeyServiceClientCredentials(key));
             var results = await search.Images.SearchAsync(criteria, safeSearch: "Strict", count: 100);
 
-            var connection = Environment.GetEnvironmentVariable("ProcessQueue");
-            var q = new QueueClient(connection, "images-to-classify");
+            //var connection = Environment.GetEnvironmentVariable("ProcessQueue");
+            //var q = new QueueClient(connection, "images-to-classify");
             foreach (var result in results.Value)
             {
-                var data = System.Text.Encoding.UTF8.GetBytes(
-                    $"{{ 'emotion': '{emotion}', 'imageUrl': '{result.ContentUrl}', 'fileName': '{result.ImageId + '.' + result.EncodingFormat}' }}");
-                await q.SendAsync(new Message(data));
+                var data = $"{{ 'emotion': '{emotion}', 'imageUrl': '{result.ContentUrl}', 'fileName': '{result.ImageId + '.' + result.EncodingFormat}' }}";
+
+                await outputMessages.AddAsync(data);
+
             }
             
             return new OkResult();

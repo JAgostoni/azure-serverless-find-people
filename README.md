@@ -1,3 +1,5 @@
+[![Deploy to Azure](https://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FJAgostoni%2Fazure-serverless-find-people%2Fmaster%2FAzure.Serverless.FindPeopleDemo.Deployment%2Fazuredeploy.json)
+
 # Azure Serverless Find People Demo
 Complete demo of Azure Functions and Cognitive Services (Bing Search API and Faces API)
 
